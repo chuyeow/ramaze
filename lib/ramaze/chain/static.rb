@@ -5,12 +5,12 @@ require "time"
 require 'digest/md5'
 
 module Ramaze
-  module Dispatcher
+  class Chain
 
     # First of the dispatchers, looks up the public path and serves the
     # file if found.
 
-    class File
+    class Static
       # These names are checked for serving from public directory.
       # They take priority over Actions which comes later in the FILTER
       INDICES = %w[index.htm index.xhtml index.html index]
@@ -21,13 +21,19 @@ module Ramaze
         # Entry point from Dispatcher::filter.
         # searches for the file and builds a response with status 200 if found.
 
-        def call(path)
-          return unless file = open_file(CGI.unescape(path))
-          Session.current.drop! if Session.current
-          if file == :NotModified
-            return response.build([], STATUS_CODE['Not Modified'])
+        def call(chain, path)
+          if file = open_file(CGI.unescape(path))
+            chain.log
+            Session.current.drop! if Session.current
+
+            if file == :NotModified
+              return response.build([], STATUS_CODE['Not Modified'])
+            end
+
+            response.build(file, STATUS_CODE['OK'])
+          else
+            chain.next
           end
-          response.build(file, STATUS_CODE['OK'])
         end
 
         # returns file-handle with the open file on success, setting the
@@ -35,23 +41,12 @@ module Ramaze
 
         def open_file(path)
           file = resolve_path(path)
-          
+
           if ::File.file?(file)
             return unless in_public?(file)
-            response['Content-Type'] = Tool::MIME.type_for(file) unless ::File.extname(file).empty?
-            mtime = ::File.mtime(file)
-            response['Last-Modified'] = mtime.httpdate
-            response['ETag']= Digest::MD5.hexdigest(file+mtime.to_s).inspect
-            if modified_since = request.env['HTTP_IF_MODIFIED_SINCE']
-              return :NotModified unless Time.parse(modified_since) < mtime
-            elsif match = request.env['HTTP_IF_NONE_MATCH']
-              # Should be a unique string enclosed in ""
-              # To avoiding more file reading we use mtime and filepath
-              # we could throw in inode and size for more uniqueness
-              return :NotModified if response['ETag']==match
-            end
-            log(file)
-            ::File.open(file, 'rb')
+
+            set_headers(file)
+            File.open(file, 'rb')
           end
         end
 
@@ -59,7 +54,7 @@ module Ramaze
         # there is an index file in that directory, in which case return path for that.
         # If path is not a directory, simply return given path in public_root.
         # Either way, the returned path always starts with public_root.
-        
+
         def resolve_path(path)
           joined = ::File.join(Global.public_root, path)
 
@@ -76,18 +71,28 @@ module Ramaze
           expand(path).start_with?(expand(Global.public_root))
         end
 
+        def set_headers(file)
+          mtime = File.mtime(file)
+
+          response['Content-Type'] =
+            Tool::MIME.type_for(file) unless ::File.extname(file).empty?
+          response['Last-Modified'] = mtime.httpdate
+          response['ETag'] = Digest::MD5.hexdigest("#{file}#{mtime}").inspect
+
+          if modified_since = request.env['HTTP_IF_MODIFIED_SINCE']
+            return :NotModified unless Time.parse(modified_since) < mtime
+          elsif match = request.env['HTTP_IF_NONE_MATCH']
+            # Should be a unique string enclosed in ""
+            # To avoiding more file reading we use mtime and filepath
+            # we could throw in inode and size for more uniqueness
+            return :NotModified if response['ETag'] == match
+          end
+        end
+
         private
 
         def expand(path)
           ::File.expand_path(path)
-        end
-
-        def log(file)
-          case file
-          when *Global.boring
-          else
-            Log.debug("Serving static: #{file}")
-          end
         end
       end
     end

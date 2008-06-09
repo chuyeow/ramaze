@@ -5,5 +5,4 @@ module Ramaze::Tool
   autoload :Create, 'ramaze/tool/create'
   autoload :Localize, 'ramaze/tool/localize'
   autoload :Mime, 'ramaze/tool/mime'
-  autoload :Record, 'ramaze/tool/record'
 end

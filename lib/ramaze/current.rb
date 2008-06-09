@@ -2,25 +2,26 @@ require 'ramaze/current/request'
 require 'ramaze/current/response'
 require 'ramaze/current/session'
 
+require 'ramaze/chain/rewrite'
+require 'ramaze/chain/dynamic'
+require 'ramaze/chain/route'
+
 module Ramaze
-  module Current
+  class Current
+    CHAIN = OrderedSet.new(
+      Chain::Rewrite,
+      # Chain::Static,
+      Chain::Dynamic,
+      Chain::Route
+    )
+
     class << self
       include Trinity
 
       def call(env)
         setup(env)
-        before_call
-
-        if filter = Global.record
-          request = Current.request
-          Record << request if filter[request]
-        end
-
-        Dispatcher.handle
-
+        chain
         finish
-      ensure
-        after_call
       end
 
       def setup(env)
@@ -29,41 +30,16 @@ module Ramaze
         self.session = Session.new
       end
 
+      def chain
+        chain = Chain.new(CHAIN)
+        catch :respond do
+          chain.call request.path_info.squeeze('/')
+        end
+      end
+
       def finish
         session.finish if session
         response.finish
-      end
-
-      def before(&block)
-        @before = block if block
-        @before
-      end
-
-      def before_call
-        if before
-          begin
-            before.call
-          rescue Object => e
-            Ramaze::Log.error e
-            raise
-          end
-        end
-      end
-
-      def after(&block)
-        @after = block if block
-        @after
-      end
-
-      def after_call
-        if after
-          begin
-            after.call
-          rescue Object => e
-            Ramaze::Log.error e
-            raise
-          end
-        end
       end
     end
   end

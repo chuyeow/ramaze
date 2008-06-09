@@ -2,7 +2,6 @@
 # All files in this distribution are subject to the terms of the Ruby license.
 
 require 'ramaze/trinity'
-require 'ramaze/tool/record'
 require 'ramaze/adapter/base'
 require 'ramaze/adapter/fake'
 

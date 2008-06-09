@@ -117,7 +117,7 @@ module Ramaze
     o "Specify directory to serve static files",
       :public_root, "public", :cli => "public"
 
-    o "Record all Request objects by assigning a filtering Proc to me.",
+    o "Record env hashes by assigning a filtering Proc to me.",
       :record, false
 
     o "root directory of your application (former APPDIR)",

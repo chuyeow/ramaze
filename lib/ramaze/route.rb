@@ -79,6 +79,14 @@ module Ramaze
 
         nil
       end
+
+      def call(chain, path)
+        if resolved = resolve(path)
+          chain.call(resolved)
+        else
+          chain.next
+        end
+      end
     end
   end
 
