@@ -8,6 +8,39 @@ require 'ramaze/chain/route'
 
 module Ramaze
   class Current
+    CHAIN = Chain.new(Chain::Rewrite, Chain::Dynamic, Chain::Route)
+
+    def self.call(env, chain = CHAIN)
+      new(env).call(chain)
+    end
+
+    attr_reader :request, :response
+
+    def initialize(env)
+      @request = Request.new(env)
+      @response = Response.new
+    end
+
+    def call(chain)
+      path = request.path_info.squeeze('/')
+      chain.context = self
+
+      if response = chain.call(path)
+        @response = response
+      end
+
+      finish
+    end
+
+    def finish
+      response.finish
+    end
+  end
+end
+
+__END__
+
+
     CHAIN = OrderedSet.new(
       Chain::Rewrite,
       # Chain::Static,

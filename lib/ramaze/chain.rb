@@ -1,57 +1,74 @@
-require 'enumerator'
-
-# require 'chain/directory'
-# require 'chain/error'
-# require 'chain/static'
-
 module Ramaze
+
+  # ctx = 'Context'
+  # l1 = lambda{|c, path| c.yield('/bar') }
+  # l2 = lambda{|c, path| c.yield('/foo') }
+  # l3 = lambda{|c, path| [200, path] }
+  #
+  # chain = Ramaze::Chain.new(ctx, l1, l2, l3)
+  # p chain.call('/')
+
   class Chain
-    include Trinity
+    attr_accessor :context, :index, :link, :links, :state
 
-    attr_reader :original_links, :links, :link, :state
-
-    # Backwards compatible with 1.8.x
-    # For ruby >=1.8.7 a simple links.flatten.each would be enough.
-    def initialize(*links)
-      @original_links = links.flatten
+    def initialize(context, *links)
+      @context = context
+      @links = links
       @state = {}
+      @result = nil
       rewind
     end
 
-    # May raise StopIteration when no elements are left.
     def call(*args)
-      @args = args # store for #next
+      @args = args
 
-      while @link = links.shift
-        if r = link.call(self, *args)
-          @r = r
-        end
+      if link = links[index]
+        self.index += 1
+        @result = link.call(self, *args)
       end
-    rescue StopIteration => ex
-      @r
+
+      return @result
+    rescue ArgumentError => error
+      raise ArgumentError, "in chain #{link}: #{error}", error.backtrace
     end
 
-    def next
-      call(*@args)
+    def next(*args)
+      args = @args if args.empty?
+      call(*args)
     end
 
     def rewind
-      @links = @original_links.dup
-      @link = nil
+      self.index = 0
     end
 
-    def log(path = request.request_uri, from = @link)
-      name = from.to_s.split('::').last
-      message = "%8s from: %-15s to: %s" % [name, request.ip, path]
+    def finish(result = @result)
+      @result = result
+      self.index = links.size
+      @result
+    end
 
-      case path
-      when *Global.boring
-        Log.dev message
-      else
-        Log.info message
-      end
-    rescue => ex
-      Log.error ex
+    def response
+      context.response
+    end
+
+    def request
+      context.request
     end
   end
+end
+
+__END__
+
+def log(path = request.request_uri, from = @link)
+  name = from.to_s.split('::').last
+  message = "%8s from: %-15s to: %s" % [name, request.ip, path]
+
+  case path
+  when *Global.boring
+    Log.dev message
+  else
+    Log.info message
+  end
+rescue => ex
+  Log.error ex
 end

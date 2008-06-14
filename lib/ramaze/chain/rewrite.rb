@@ -7,7 +7,7 @@ module Ramaze
           path = new_path
         end
 
-        chain.call(path)
+        chain.next(path)
       end
     end
   end

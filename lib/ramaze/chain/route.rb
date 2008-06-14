@@ -14,7 +14,7 @@ module Ramaze
           end
         end
 
-        chain.call(path)
+        chain.next(path)
       end
     end
   end

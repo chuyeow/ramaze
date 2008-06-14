@@ -11,22 +11,30 @@ module Ramaze
     MIDDLEWARE = OrderedSet.new(
       # Rack::CommonLogger,
       Rack::ShowExceptions,
-      Rack::ShowStatus
+      Rack::ShowStatus,
+      MiddleWare::Reloader
       # MiddleWare::Benchmark
     )
 
-    CASCADE = [
-      MiddleWare::Record,
-      MiddleWare::Directory,
-      Current
-    ]
+    CASCADE = OrderedSet.new(Current)
 
+    @hash = nil # [@middleware, @cascade]
+
+    # This make sure there is only one builder and it's instantiated anew when
+    # middleware or cascade change.
     def self.call(env)
-      Rack::Builder.new{
-        MIDDLEWARE.each{|mw| use(mw) }
+      mw, ca = MIDDLEWARE, CASCADE
 
-        run Rack::Cascade.new(CASCADE)
-      }.call(env)
+      unless @hash == [mw, ca]
+        # FIXME: empty block due to bug in rack
+        @builder = Rack::Builder.new{}
+
+        mw.each{|m| @builder.use(m) }
+        @builder.run(Rack::Cascade.new(ca))
+        @hash = [mw, ca]
+      end
+
+      @builder.call(env)
     end
   end
 end

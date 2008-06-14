@@ -8,15 +8,28 @@ module Ramaze
     # and filtering the results using FILTER.
 
     class Dynamic
-      extend Trinity
-
       def self.call(chain, path)
-        chain.log
+        request = chain.request
+        response = chain.response
+
+        response.body = 'Hello, World!'
+        response.status = 200
+        chain.finish(response)
+      end
+    end
+  end
+end
+
+__END__
+        response = chain.response
+        # chain.log
 
         catch :respond do
           body = Controller.handle(path)
           response.build(body)
         end
+
+        p response
 
         chain.next
 

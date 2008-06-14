@@ -39,5 +39,22 @@ module Ramaze
         answer
       end
     end
+
+    class Reloader < ::Rack::Reloader
+      trait :self => nil
+
+      def self.new(app)
+        trait[:self] ||= super
+      end
+
+      def initialize(app, secs = Global.sourcereload)
+        super(app, secs)
+      end
+
+      def call(env)
+        p object_id
+        super(env)
+      end
+    end
   end
 end

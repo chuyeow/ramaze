@@ -39,7 +39,7 @@ Thread.abort_on_exception = true
 
 # Bootstrap
 require 'ramaze/version'
-require 'ramaze/sourcereload'
+# require 'ramaze/sourcereload'
 require 'ramaze/snippets'
 require 'ramaze/log'
 require 'ramaze/trinity'
@@ -62,7 +62,7 @@ module Ramaze
   # Each of these classes will be called ::startup upon Ramaze.startup
 
   trait :essentials => [
-    Global, Cache, Contrib, Controller, Session, SourceReload, Adapter
+    Global, Cache, Contrib, Controller, Session, Adapter
   ]
 
   trait :started => false

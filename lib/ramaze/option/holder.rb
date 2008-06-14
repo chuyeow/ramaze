@@ -103,20 +103,6 @@ module Ramaze
         find_from_aliases(@cache, :cache_aliases, Ramaze, "ramaze/cache")
       end
 
-      def sourcereload=(interval)
-        if interval
-          if interval.is_a?(Numeric)
-            @sourcereload = interval
-            Ramaze::SourceReload.restart
-          else
-            Log.warn("sourcereload= %p not Numeric, ignoring." % interval)
-          end
-        else
-          @sourcereload = interval
-          Ramaze::SourceReload.shutdown
-        end
-      end
-
       private
 
       def find_from_aliases(name, alias_key, mod, path)
