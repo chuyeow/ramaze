@@ -10,6 +10,7 @@ class MainController < Ramaze::Controller
   layout '/layout'
 
   def index
+    p request
     if request.post?
       session[:nick] = request[:nick]
       redirect Rs(:chat)

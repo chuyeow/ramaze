@@ -9,14 +9,15 @@ require 'ramaze/current'
 module Ramaze
   module Dispatcher
     MIDDLEWARE = OrderedSet.new(
-      # Rack::CommonLogger,
+      Rack::CommonLogger,
       Rack::ShowExceptions,
       Rack::ShowStatus,
       MiddleWare::Reloader
+      # MiddleWare::Directory
       # MiddleWare::Benchmark
     )
 
-    CASCADE = OrderedSet.new(Current)
+    CASCADE = OrderedSet.new(MiddleWare::File, Current)
 
     @hash = nil # [@middleware, @cascade]
 

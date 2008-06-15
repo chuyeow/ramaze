@@ -23,9 +23,7 @@ module Ramaze
     module User
       # return existing or instantiate User::Wrapper
       def user
-        model = ancestral_trait[:user_model] ||= ::User
-        callback = ancestral_trait[:user_callback] ||= nil
-        Thread.current[:user] ||= Wrapper.new(model, callback)
+        @__user__ ||= Wrapper.new(self)
       end
 
       # shortcut for user.user_login but default argument are request.params
@@ -59,8 +57,10 @@ module Ramaze
 
         attr_accessor :_model, :_callback, :_user
 
-        def initialize(model, callback)
-          @_model, @_callback = model, callback
+        def initialize(controller_instance)
+          t = controller_instance.ancestral_trait
+          @_model = t[:user_model] ||= ::User
+          @_callback = t[:user_callback] ||= nil
           @_user = nil
           _login
         end

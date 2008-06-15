@@ -8,6 +8,17 @@ module Ramaze
   # retrieve the demanded object
 
   module Trinity
-    thread_accessor :request, :response, :session
+    # thread_accessor :request, :response, :session
+    def request
+      context.request
+    end
+
+    def response
+      context.response
+    end
+
+    def session
+      context.session
+    end
   end
 end

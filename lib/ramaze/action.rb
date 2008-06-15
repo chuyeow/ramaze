@@ -5,7 +5,9 @@ module Ramaze
 
   unless defined?(Action) # prevent problems for SourceReload
 
-    members = %w[method params template controller path binding engine instance]
+    members = %w[ method params template
+                  controller context path
+                  binding engine instance ]
 
     # The Action holds information that is essential to render the action for a
     # request.
@@ -20,29 +22,15 @@ module Ramaze
   class Action
     include Helper::Link
 
-    class << self
+    # Instantiate with given Hash, takes both string/symbol keys.
+    # Only keys that match members of the Action-Struct are used.
 
-      # Instantiate with given Hash, takes both string/symbol keys.
-      # Only keys that match members of the Action-Struct are used.
-
-      def create(hash = {})
-        i = new
-        members.each do |key|
-          i.send("#{key}=", (hash[key] || hash[key.to_sym]))
-        end
-        i
+    def self.create(hash = {})
+      i = new
+      members.each do |key|
+        i.send("#{key}=", (hash[key] || hash[key.to_sym]))
       end
-
-      # alias for stack.last, returns the instance of Action you are currently in.
-
-      def current
-        stack.last
-      end
-
-      # Return the stacked actions for the current request
-      def stack
-        Thread.current[:action_stack] ||= []
-      end
+      i
     end
 
     # nicer representation of the Action
@@ -100,7 +88,7 @@ module Ramaze
     # Returns an instance of controller, will be cached on first access.
 
     def instance
-      self[:instance] ||= controller.new
+      self[:instance] ||= controller.new(context)
     end
 
     # Returns a binding of the instance, will be cached on first access.
@@ -135,7 +123,7 @@ module Ramaze
 
     def valid_rest?
       return true unless rest = controller.trait[:REST]
-      meth = Request.current.request_method
+      meth = context.request.request_method
 
       return true if rest[:any].include?(name)
 

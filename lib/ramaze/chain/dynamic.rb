@@ -1,6 +1,8 @@
 #          Copyright (c) 2008 Michael Fellinger m.fellinger@gmail.com
 # All files in this distribution are subject to the terms of the Ruby license.
 
+require 'ramaze/resolve'
+
 module Ramaze
   class Chain
 
@@ -9,30 +11,12 @@ module Ramaze
 
     class Dynamic
       def self.call(chain, path)
-        request = chain.request
+        p :Dynamic => path
         response = chain.response
-
-        response.body = 'Hello, World!'
-        response.status = 200
-        chain.finish(response)
-      end
-    end
-  end
-end
-
-__END__
-        response = chain.response
-        # chain.log
-
-        catch :respond do
-          body = Controller.handle(path)
-          response.build(body)
-        end
-
-        p response
-
+        body = Resolver.new(chain.context).handle(path)
+        pp :body => body
+        response.body << body
         chain.next
-
         response
       end
     end

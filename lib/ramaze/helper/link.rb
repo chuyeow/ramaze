@@ -72,17 +72,17 @@ module Ramaze
       front = atoms.join('/').squeeze('/')
 
       if args
-        rear = args.inject('?'){|s,(k,v)| s << "#{CGI.escape k.to_s}=#{CGI.escape v.to_s};"}[0..-2]
-        front + rear
+        p args
+        front << '?' << args.map{|s,(k,v)| "#{h k}=#{h v};"}[0..-2]
       else
         front
       end
     end
 
-    # Uses R with Controller.current as first element.
+    # Uses R with current controller as first element.
 
     def Rs(*atoms)
-      atoms.unshift Controller.current unless atoms.first.is_a?(Controller)
+      atoms.unshift context.controller unless atoms.first.is_a?(Controller)
       R(*atoms)
     end
 

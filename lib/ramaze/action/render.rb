@@ -7,13 +7,14 @@ module Ramaze
     # Use your block and jump into the Action::stack - this allows you to call
     # nested actions.
     def stack
-      Action.stack << self
+      context[:action_stack] << self
+      # Action.stack << self
       yield self
     rescue Object => ex
       Log.error "#{ex} in: #{self}"
       raise ex
     ensure
-      Action.stack.pop
+      context[:action_stack].pop
     end
 
     # Render this instance of Action, this will (eventually) pass itself to
@@ -29,7 +30,7 @@ module Ramaze
         if should_cache?
           # Ignore cache if there is flash session data as the response probably
           # expects to include it, making it unique for this user and request.
-          if Global.no_cache_flash && !Current.session.flash.empty?
+          if Global.no_cache_flash && !current.session.flash.empty?
             Log.debug("Action caching ignored as session flash data is present.")
             uncached_render
           else
@@ -143,7 +144,7 @@ module Ramaze
         if layout.to_s !~ /\A\// # late bind layout action to current controller
           layout = R(controller, layout)
         end
-        layout_action = Controller.resolve(layout)
+        layout_action = Resolver.new(context).resolve(layout)
 
         return false if denied.any?{|deny| deny === path} or layout_action.path == path
 

@@ -5,7 +5,6 @@ require 'ramaze/helper'
 require 'ramaze/template'
 require 'ramaze/action'
 
-require 'ramaze/controller/resolve'
 require 'ramaze/controller/error'
 
 module Ramaze
@@ -111,7 +110,8 @@ module Ramaze
 
       def layout(*meth_or_hash)
         if meth_or_hash.empty?
-          trait[:layout] ||= ( ancestral_trait[:layout] || {:all => nil, :deny => Set.new} ).dup
+          trait[:layout] ||= (
+            ancestral_trait[:layout] || {:all => nil, :deny => Set.new} ).dup
         else
           meth_or_hash = meth_or_hash.first
           if meth_or_hash.respond_to?(:to_hash)
@@ -224,6 +224,119 @@ module Ramaze
         end
       end
 
+      # Try to produce an Action from the given path and paremters with the
+      # appropiate template if one exists.
+
+      def resolve_action(path, *parameter)
+        path, parameter = path.to_s, parameter.map{|e| e.to_s}
+
+        if info = trait["#{path}_template"]
+          unless template = info[:file]
+            controller, action = info.values_at(:controller, :action)
+            template = resolve_template(action)
+          end
+        end
+
+        method, params = resolve_method(path, *parameter)
+
+        if method or parameter.empty?
+          template ||= resolve_template(path)
+        end
+
+        action = Action.create(:controller => self,
+                               :method => method,
+                               :params => params,
+                               :path => path,
+                               :template => template)
+
+        return false unless action.valid_rest?
+        action
+      end
+
+      # Composes an array with the template-paths to look up in the right order.
+      # Usually this is composed of Global.view_root and the mapping of the
+      # controller.
+
+      def template_paths
+        if paths = view_root
+          paths
+        else
+          view_root(Global.view_root / mapping)
+        end
+      end
+
+      # Search the #template_paths for a fitting template for path.
+      # Only the first found possibility for the generated glob is returned.
+
+      def resolve_template(path)
+        path = path.to_s
+        path_converted = path.split('__').inject{|s,v| s/v}
+        possible_paths = [path, path_converted].compact
+
+        paths = template_paths.map{|pa|
+          possible_paths.map{|a| pa/a }
+        }.flatten.uniq
+
+        glob = "{#{paths.join(',')}}.{#{extension_order.join(',')}}"
+
+        Dir[glob].first
+      end
+
+      # Uses custom defined engines and all available engines and throws it
+      # against the extensions for the template to find the most likely
+      # templating-engine to use ordered by priority and likelyhood.
+
+      def extension_order
+        t_extensions = Template::ENGINES
+        all_extensions = t_extensions.values.flatten
+
+        if engine = trait[:engine]
+          c_extensions = t_extensions.select{|k,v| k == engine}.map{|k,v| v}.flatten
+          return (c_extensions + all_extensions).uniq
+        end
+
+        all_extensions
+      end
+
+      # Based on methodname and arity, tries to find the right method on
+      # current controller.
+      def resolve_method(name, *params)
+        cam = cached_action_methods
+
+        if cam.include?(name)
+          method = name
+        else
+          name = name.gsub(/__/, '/')
+          method = name if cam.include?(name)
+        end
+
+        if method
+          arity = instance_method(method).arity
+          if arity < 0 or params.size == arity
+            return method, params
+          end
+        end
+
+        return nil, []
+      end
+
+      # List or create a list of action methods to be cached
+
+      def cached_action_methods
+        Cache.action_methods[self] ||= action_methods
+      end
+
+      # methodnames that may be used for current controller.
+      def action_methods
+        ancs = relevant_ancestors + Helper::LOOKUP.to_a
+
+        ancs.reverse.inject [] do |meths, anc|
+          meths +
+            anc.public_instance_methods(false).map{|im| im.to_s } -
+            anc.private_instance_methods(false).map{|im| im.to_s }
+        end
+      end
+
       # This is a method to specify the templating engine for your controller.
       # It basically just is sugar for:
       #   trait :engine => Haml
@@ -242,27 +355,17 @@ module Ramaze
         trait :engine => name
       end
 
-      # Return Controller of current Action
-
-      def current
-        action = Action.current
-        action.instance || action.controller
-      end
-
-      # Entering point for Dispatcher, first Controller::resolve(path) and then
-      # renders the resulting Action.
-
-      def handle path
-        action = resolve(path)
-        Thread.current[:controller] = action.controller
-        action.render
-      end
-
       def relevant_ancestors(parent = Ramaze::Controller)
         ancestors.select do |anc|
           anc.ancestors.include?(parent)
         end
       end
+    end
+
+    attr_accessor :context
+
+    def initialize(context)
+      @context = context
     end
 
     private

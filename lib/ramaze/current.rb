@@ -14,66 +14,62 @@ module Ramaze
       new(env).call(chain)
     end
 
-    attr_reader :request, :response
+    attr_reader :request, :response, :session
+    attr_accessor :action, :controller
 
     def initialize(env)
       @request = Request.new(env)
       @response = Response.new
+      @session = Session.new(self)
+      @state = {}
     end
 
     def call(chain)
       path = request.path_info.squeeze('/')
       chain.context = self
 
-      if response = chain.call(path)
-        @response = response
-      end
+      respond = redirect = nil
+
+      respond = catch(:respond){
+        redirect = catch(:redirect){
+          r = chain.call(path)
+          pp :r => r
+          @response = r if r
+          throw(:respond)
+        }
+        response.build(*redirect)
+      }
+
+      pp :respond => respond
+      pp :redirect => redirect
+      pp :response => response
+
+      # catch(:respond){
+      #   redirected = catch(:redirect){
+      #     filter(path)
+      #     throw(:respond)
+      #   }
+      #   response.build(*redirected)
+      # }
+
+      # if response = chain.call(path)
+      #   @response = response
+      # end
 
       finish
     end
 
     def finish
+      session.finish if session
       response.finish
     end
-  end
-end
 
-__END__
+    def [](key)
+      @state[key]
+    end
 
-
-    CHAIN = OrderedSet.new(
-      Chain::Rewrite,
-      # Chain::Static,
-      Chain::Dynamic,
-      Chain::Route
-    )
-
-    class << self
-      include Trinity
-
-      def call(env)
-        setup(env)
-        chain
-        finish
-      end
-
-      def setup(env)
-        self.request = Request.new(env)
-        self.response = Response.new
-        self.session = Session.new
-      end
-
-      def chain
-        chain = Chain.new(CHAIN)
-        catch :respond do
-          chain.call request.path_info.squeeze('/')
-        end
-      end
-
-      def finish
-        session.finish if session
-        response.finish
-      end
+    def []=(key, value)
+      @state[key] = value
     end
   end
 end

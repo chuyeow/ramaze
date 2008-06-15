@@ -3,15 +3,14 @@ require 'benchmark'
 module Ramaze
   module MiddleWare
     class File < ::Rack::File
-      # def initialize(root)
-      def initialize(app = nil)
-        super Global.public_root
+      def self.call(env)
+        new(Global.public_root).call(env)
       end
     end
 
     class Directory < ::Rack::Directory
-      def self.call(env)
-        new(Global.public_root).call(env)
+      def initialize(app)
+        super(Global.public_root, app)
       end
     end
 
@@ -52,7 +51,6 @@ module Ramaze
       end
 
       def call(env)
-        p object_id
         super(env)
       end
     end

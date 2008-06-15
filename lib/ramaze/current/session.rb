@@ -20,6 +20,8 @@ module Ramaze
   # deleted or expires.
 
   class Session
+    attr_accessor :context
+
     # The unique id for the current session which is also passed on to the cookie.
 
     attr_accessor :session_id
@@ -66,9 +68,9 @@ module Ramaze
 
     # retrieve a specific session given a session id
 
-    def self.[](sess_id)
-      Session.new(sess_id)
-    end
+    # def self.[](sess_id)
+    #   Session.new(sess_id)
+    # end
 
     # generate a random (and hopefully unique) id for the current session.
     #
@@ -78,10 +80,11 @@ module Ramaze
     # All this is joined by some calls to Kernel#rand and returned as a
     # Digest::SHA256::hexdigest
 
-    def self.random_key
+    def self.random_key(seed = rand)
+      srand
       h = [
         Time.now.to_f.to_s, rand,
-        Current.request.hash, rand,
+        seed.hash, rand,
         Process.pid, rand,
         object_id, rand
       ].join
@@ -93,16 +96,17 @@ module Ramaze
     #
     # sets @session_id and @session_flash
 
-    def initialize(sess_or_request = Current.request)
+    def initialize(context, id = nil) #sess_or_request = Current.request)
       return unless Global.sessions
 
-      if sess_or_request.is_a?(Request)
-        request = sess_or_request
-        @session_id = request.cookies[SESSION_KEY] || Session.random_key
+      @context = context
+
+      if id
+        @session_id = id
       else
-        request = nil
-        @session_id = sess_or_request
+        @session_id = request.cookies[SESSION_KEY] || Session.random_key(request)
       end
+      pp :context => context, :id => id, :@session_id => @session_id
 
       unless IP_COUNT.nil? or request.nil?
         ip = request.ip
@@ -113,6 +117,10 @@ module Ramaze
       @flash = Session::Flash.new(self)
       @current = nil
       @dropped = false
+    end
+
+    def request
+      context.request
     end
 
     # relay all messages we don't understand to the currently active session
@@ -165,7 +173,7 @@ module Ramaze
       old = current.delete(:FLASH)
       current[:FLASH_PREVIOUS] = old if old
 
-      request, response = Current.request, Current.response
+      request, response = context.request, context.response
 
       hash = {:value => session_id}.merge(COOKIE)
       response.set_cookie(SESSION_KEY, hash)
