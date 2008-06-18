@@ -10,11 +10,7 @@ module Ramaze
       def call(env)
         setup(env)
         before_call
-
-        if filter = Global.record
-          request = Current.request
-          Record << request if filter[request]
-        end
+        record
 
         Dispatcher.handle
 
@@ -27,6 +23,13 @@ module Ramaze
         self.request = Request.new(env)
         self.response = Response.new
         self.session = Session.new
+      end
+
+      def record
+        if filter = Global.record
+          request = Current.request
+          Record << request if filter[request]
+        end
       end
 
       def finish

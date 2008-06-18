@@ -98,16 +98,10 @@ module Ramaze
         # Then goes on and calls Dispatcher::handle with request and response.
 
         def respond(env)
-          if Global.server.respond_to?(:thread) and Global.server.thread == Thread.current
-            Thread.new{ middleware_respond(env) }.value
-          else
-            middleware_respond(env)
-          end
+          STATE.wrap{ middleware_respond(env) }
         end
 
         def middleware_respond(env)
-          Thread.current.priority = 1
-
           if Global.middleware
             MIDDLEWARE.inject{|app, middleware| middleware.new(app) }.call(env)
           else
